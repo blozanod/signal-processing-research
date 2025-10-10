@@ -1,12 +1,10 @@
 # Ignore all images
-Dataset/DIV2K/DIV2K/DIV2K_Train_Bayer/*.png
-Dataset/DIV2K/DIV2K/DIV2K_Train_HR/*.png
-Dataset/DIV2K/DIV2K/DIV2K_Test_Bayer/*.png
-Dataset/DIV2K/DIV2K/DIV2K_Test_HR/*.png
-Dataset/Final_Dataset_Images/Train/Input/*.png
-Dataset/Final_Dataset_Images/Train/Target/*.png
-Dataset/Final_Dataset_Images/Test/Input/*.png
-Dataset/Final_Dataset_Images/Test/Target/*.png
+# Ignore all .png images inside the Dataset folder and its subfolders
+Dataset/**/*.png
+
+# Ignore data folder and .vs folder
+.vs
+data
 
 # Ignore data folder and .vs folder
 .vs
