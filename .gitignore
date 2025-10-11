@@ -1,6 +1,6 @@
 # Ignore all images
 # Ignore all .png images inside the Dataset folder and its subfolders
-Dataset/**/*.png
+Debayer_Project/Dataset/**/*.png
 
 # Ignore data folder and .vs folder
 .vs
