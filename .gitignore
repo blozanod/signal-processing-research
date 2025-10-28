@@ -1,6 +1,6 @@
 # Ignore all images
 # Ignore all .png images inside the Dataset folder and its subfolders
-Debayer_Project/**/*.png
+Debayer_Project/Data/**/*.png
 
 # Ignore all .pth and .pyc files
 Debayer_Project/**/*.pth
@@ -8,8 +8,4 @@ Debayer_Project/**/*.pyc
 
 # Ignore data folder and .vs folder
 .vs
-data
-
-# Ignore data folder and .vs folder
-.vs
-data
+Getting Started/data
