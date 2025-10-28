@@ -104,7 +104,7 @@ Therefore, modifying how loss is calculated, or modifying training data so that 
 
 ---
 
-### Visual Results (Work in Progress)
+### Visual Results
 
 Below is a side-by-side comparison of a ground truth (target) image and the corresponding output from the trained model.
 
