@@ -13,7 +13,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 # Allows for significantly deeper neural networks VGGs have limitation
 # that deep neural networks (30+ layers) are worse due to jumbling data
 # For experimentation purposes, initial accuracy at 10 epochs: 83.3%
-# Improved accuracy to 87.3%
+# Improved accuracy to 87.3%, then 90.1%
 
 # --------------------------------------------------------------------------------
 # -- Data Loading --
