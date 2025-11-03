@@ -1,30 +1,34 @@
 import os
 import torch
 from tqdm import tqdm
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from torchvision import transforms
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
+# Distributed Data Parallel
+import torch.distributed as dist
+from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
 
-from Data import make_dataset as md
-from Model import unet as un
+# Dataset and UNet Scripts
+from Data.make_dataset import ImageDataset
+from Model.unet import UNet
 
-# --------------------------------------------------------------------------------
-# -- First Testing Results --
-# --------------------------------------------------------------------------------
-# Epoch 1: Validation Avg Loss: 0.007502
-# Epoch 2: Validation Avg Loss: 0.006270
-# Epoch 3: Validation Avg Loss: 0.002309
-# Epoch 4: Validation Avg Loss: 0.001356
-# Therefore, it is learning, and becoming more accurate, will validate with visual evidence
-# See visual.py for visual evidence
+# Directories
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir) 
+DATA_DIR = os.path.join(project_root,"Data","Final_Dataset_Images")
+INPUT_DIR = os.path.join(DATA_DIR,"Train","Input")
+OUTPUT_DIR = os.path.join(DATA_DIR,"Train","Target")
+VALID_INPUT_DIR = os.path.join(DATA_DIR,"Validate","Input")
+VALID_OUTPUT_DIR = os.path.join(DATA_DIR,"Validate","Target")
 
 # --------------------------------------------------------------------------------
 # -- Training & Testing Functions --
 # --------------------------------------------------------------------------------
-def train(dataloader, model, loss_fn, optimizer):
+def train(dataloader, model, loss_fn, optimizer, device):
     model.train()
     
     # Wrap the dataloader with tqdm
@@ -46,7 +50,7 @@ def train(dataloader, model, loss_fn, optimizer):
         # Update the progress bar's description with the current loss
         loop.set_postfix(loss=loss.item())
 
-def validate(dataloader, model, loss_fn):
+def validate(dataloader, model, loss_fn, device):
     num_batches = len(dataloader)
     model.eval() 
     test_loss = 0
@@ -70,21 +74,20 @@ def validate(dataloader, model, loss_fn):
     test_loss /= num_batches
     print(f"Validation Error: \n Avg loss: {test_loss:>8f} \n")
 
+# --------------------------------------------------------------------------------
+# -- DDP Functions --
+# --------------------------------------------------------------------------------
+def setup():
+    dist.init_process_group(backend='nccl')
+    torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
 
-if __name__ == "__main__":
+def cleanup():
+    dist.destroy_process_group()
+
+def main():
     # --------------------------------------------------------------------------------
     # -- Data Loading --
     # --------------------------------------------------------------------------------
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir) 
-
-
-    DATA_DIR = os.path.join(project_root, "Data", "Final_Dataset_Images")
-    INPUT_DIR = os.path.join(DATA_DIR,"Train\\Input")
-    OUTPUT_DIR = os.path.join(DATA_DIR,"Train\\Target")
-    VALID_INPUT_DIR = os.path.join(DATA_DIR,"Validate\\Input")
-    VALID_OUTPUT_DIR = os.path.join(DATA_DIR,"Validate\\Target")
-
     BATCH_SIZE = 8
 
     # Transforms
@@ -96,14 +99,15 @@ if __name__ == "__main__":
     ])
 
     # Create train dataset and dataloader
-    train_dataset = md.ImageDataset(INPUT_DIR, OUTPUT_DIR, transform)
-    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
-
+    train_dataset = ImageDataset(INPUT_DIR, OUTPUT_DIR, transform)
+    train_sampler = DistributedSampler(train_dataset)
+    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, num_workers=4, sampler=train_sampler)
     print(f"Training Data: Found {len(train_dataset)} image pairs.")
 
     # Create validation dataset and dataloader
-    valid_dataset = md.ImageDataset(VALID_INPUT_DIR, VALID_OUTPUT_DIR, transform)
-    valid_dataloader = DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
+    valid_dataset = ImageDataset(VALID_INPUT_DIR, VALID_OUTPUT_DIR, transform)
+    valid_sampler = DistributedSampler(valid_dataset)
+    valid_dataloader = DataLoader(valid_dataset, batch_size=BATCH_SIZE, num_workers=4, sampler=valid_sampler)
     print(f"Validation Data: Found {len(valid_dataset)} image pairs.")
 
     # --------------------------------------------------------------------------------
@@ -113,7 +117,9 @@ if __name__ == "__main__":
     device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
     print(f"Using {device} device")
 
-    model = un.UNet().to(device)
+    model = UNet().to(device)
+    model = DDP(model, device_ids=[device])
+    model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     print(model)
 
     # --------------------------------------------------------------------------------
@@ -146,9 +152,10 @@ if __name__ == "__main__":
 
     # Runs model through epochs (generations)
     for t in range(epochs):
+        train_sampler.set_epoch(t)
         print(f"Epoch {t+1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer)
-        validate(valid_dataloader, model, loss_fn)
+        train(train_dataloader, model, loss_fn, optimizer, device)
+        validate(valid_dataloader, model, loss_fn, device)
         scheduler.step()
 
         # Checkpoints after each epoch
@@ -158,10 +165,18 @@ if __name__ == "__main__":
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
         }
-        torch.save(checkpoint, CHECKPOINT_PATH)
+        if dist.get_rank() == 0:
+            torch.save(checkpoint, CHECKPOINT_PATH)
         print(f"Saved checkpoint for epoch {t + 1}")
     print("Training Done!")
 
     # This saves only the learned weights, which is all you need for making predictions.
-    torch.save(model.state_dict(), "model.pth")
+    if dist.get_rank() == 0:
+        torch.save(model.state_dict(), "model.pth")
     print("Saved PyTorch Model State to model.pth")
+
+
+if __name__ == "__main__":
+    setup()
+    main()
+    cleanup()

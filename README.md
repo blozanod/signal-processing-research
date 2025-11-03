@@ -106,16 +106,16 @@ Therefore, modifying how loss is calculated, or modifying training data so that 
 
 ### Visual Results
 
-Below is a side-by-side comparison of a ground truth (target) image and the corresponding output from the trained model.
+Below is a side-by-side comparison of a ground truth (target) image and the corresponding output from the trained model (200 epochs).
 
 | Ground Truth | Model Output |
 |---------------|--------------|
-| ![Ground Truth](images/0801.png) | ![Model Output](images/0801_test.png) |
-| ![Ground Truth](images/0802.png) | ![Model Output](images/0802_test.png) |
-| ![Ground Truth](images/0844.png) | ![Model Output](images/0844_test.png) |
-| ![Ground Truth](images/0852.png) | ![Model Output](images/0852_test.png) |
-| ![Ground Truth](images/0873.png) | ![Model Output](images/0873_test.png) |
-| ![Ground Truth](images/0898.png) | ![Model Output](images/0898_test.png) |
+| ![Ground Truth](images/0801.png) | ![Model Output](images/0801v2.png) |
+| ![Ground Truth](images/0802.png) | ![Model Output](images/0802v2.png) |
+| ![Ground Truth](images/0844.png) | ![Model Output](images/0844v2.png) |
+| ![Ground Truth](images/0852.png) | ![Model Output](images/0852v2.png) |
+| ![Ground Truth](images/0873.png) | ![Model Output](images/0873v2.png) |
+| ![Ground Truth](images/0898.png) | ![Model Output](images/0898v2.png) |
 
 ---
 
