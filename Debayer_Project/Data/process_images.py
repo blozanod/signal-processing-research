@@ -40,10 +40,10 @@ def bayer_img(img, name, directory):
 
     mossaic = np.zeros((h, w), dtype=img.dtype)
 
-    mossaic[0:h:2, 0:w:2] = img[0:h:2, 0:w:2, 0] # blue
+    mossaic[0:h:2, 0:w:2] = img[0:h:2, 0:w:2, 2] # red
     mossaic[1:h:2, 0:w:2] = img[1:h:2, 0:w:2, 1] # green
     mossaic[0:h:2, 1:w:2] = img[0:h:2, 1:w:2, 1] # green
-    mossaic[1:h:2, 1:w:2] = img[1:h:2, 1:w:2, 2] # red
+    mossaic[1:h:2, 1:w:2] = img[1:h:2, 1:w:2, 0] # blue
 
     # Save as PNG
     cv2.imwrite(os.path.join(directory, name), mossaic)

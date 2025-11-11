@@ -1,3 +1,7 @@
+# ------- OBSOLETE -------
+# Changed the way the bayer images are generated, from openCV's BGGR to RGGB
+# Therefore using openCV's debayer module doesn't work as expected.
+
 import cv2
 import os
 import numpy as np

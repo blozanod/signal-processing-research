@@ -60,6 +60,8 @@ class UNet(nn.Module):
         # Pooling
         self.maxpool = nn.MaxPool2d((2, 2)) # Averages each feature map to 1x1
 
+        self.sigmoid = nn.Sigmoid() # Squashes values from 0-1 to avoid oversaturation/blown out images
+
     def forward(self, x):
         # Padding so every image size works
         _, _, H, W = x.shape
@@ -114,6 +116,9 @@ class UNet(nn.Module):
 
         # Crop out layer
         out = out_padded[:, :, :H, :W]
+
+        # Squashed
+        out = self.sigmoid(out)
 
         return out
     
