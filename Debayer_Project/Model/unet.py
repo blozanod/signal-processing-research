@@ -62,6 +62,9 @@ class UNet(nn.Module):
 
         self.sigmoid = nn.Sigmoid() # Squashes values from 0-1 to avoid oversaturation/blown out images
 
+        # Dropout
+        self.dropout = nn.Dropout2d(0.25)
+
     def forward(self, x):
         # Padding so every image size works
         _, _, H, W = x.shape
@@ -89,6 +92,7 @@ class UNet(nn.Module):
 
         # Bottleneck
         bottleneck = self.bottleneck(pool5)
+        bottleneck = self.dropout(bottleneck)
 
         # Up (Decoder)
         up_conv1 = self.up_conv1(bottleneck)

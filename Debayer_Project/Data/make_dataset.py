@@ -5,6 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import Image
 import os
+import random
 
 # --------------------------------------------------------------------------------
 # -- Image Dataset Class Definition --
@@ -22,6 +23,10 @@ class ImageDataset(Dataset):
         self.input_filenames = sorted(os.listdir(input_dir))
         self.output_filenames = sorted(os.listdir(output_dir))
 
+        if is_train:
+            self.input_filenames = self.input_filenames * 10
+            self.output_filenames = self.output_filenames * 10
+
         # Ensure same number of images
         assert len(self.input_filenames) == len(self.output_filenames), "Input and Output directories have different length"
 
@@ -29,12 +34,15 @@ class ImageDataset(Dataset):
         return len(self.input_filenames)
     
     def __getitem__(self, index):
+        adj_index = index % (len(self.input_filenames) // 10) # adjusted index for increasing image dataset size
+
         input_path = os.path.join(self.input_dir, self.input_filenames[index])
         output_path = os.path.join(self.output_dir, self.output_filenames[index])
 
         input_image = Image.open(input_path).convert("L")
         output_image = Image.open(output_path).convert("RGB")
 
+        # Random Crop
         if self.is_train:
             # Get parameters for a RANDOM crop
             i, j, h, w = transforms.RandomCrop.get_params(
@@ -53,6 +61,17 @@ class ImageDataset(Dataset):
         # Applies crop to image
         input_image = F.crop(input_image, i, j, h, w)
         output_image = F.crop(output_image, i, j, h, w)
+
+        # Random flip
+        if self.is_train:
+            # Horizontal
+            if random.random() > 0.5:
+                input_image = F.hflip(input_image)
+                output_image = F.hflip(output_image)
+            # Vertical
+            if random.random() > 0.5:
+                input_image = F.vflip(input_image)
+                output_image = F.vflip(output_image)
 
         if self.transform:
             input_image = self.transform(input_image)

@@ -158,6 +158,16 @@ The model still exhibits difficulties in accurately rendering the blue channel a
 
 Additionally, there is significant detail loss in dark areas, which is especially present in `0852v4.png` (see top left corner). This is likely to do with how MSE loss doesn't punish small differences in color, which is exacty what occurs in such dark environments. The same MSE weakness arises when considering that the model still shows, albeit significantly less, the underlying mosaic (0802v4.png, 0801v4.png). A possible improvement for these issues might involve a combination of MSELoss with a different, more perceptual, loss function.
 
+V5 showed a the model was still overfitting, but on the more traditional way. After 3,500 epochs, training loss was around an order of magnitude smaller than the validation loss (training loss [~0.0004, ~0.0001], validation loss ~0.002). Additionally, validation loss had no significant change when compared to V4, so the training process was killed (hence no complete loss list).
+
+**V6 additional overfit and loss fn improvements:**
+
+V6 targets overfit in two ways: Added nn.dropout(0.25) at bottleneck layer and improved dataset generation by adding random horizontal and vertical flips.
+
+Additionally V6 changed the loss function to L1Loss instead of MSE loss with hopes of minimizing the model crushing the dark colors and to produce a sharper image.
+
+Epoch size was also tweaked to optimize for minimal GPU downtime: artificially increased training dataset by 10x so each epoch goes through 8,000 images instead of 800. Thus total epochs decreased back to 250 (not 2,500 because the significantly larger 512x512px images are around 10x larger than old images, wanted to keep training time similar at around 12 hours).
+
 ---
 
 ### Current Visual Results
@@ -172,12 +182,12 @@ For more images, and a version history of heach image, see images folder or the 
 
 | Ground Truth | Model Output |
 |---------------|--------------|
-| ![Ground Truth](images/0801.png) | ![Model Output](images/0801v4.png) |
-| ![Ground Truth](images/0802.png) | ![Model Output](images/0802v4.png) |
-| ![Ground Truth](images/0844.png) | ![Model Output](images/0844v4.png) |
-| ![Ground Truth](images/0852.png) | ![Model Output](images/0852v4.png) |
-| ![Ground Truth](images/0873.png) | ![Model Output](images/0873v4.png) |
-| ![Ground Truth](images/0898.png) | ![Model Output](images/0898v4.png) |
+| ![Ground Truth](images/0801.png) | ![Model Output](images/0801v5.png) |
+| ![Ground Truth](images/0802.png) | ![Model Output](images/0802v5.png) |
+| ![Ground Truth](images/0844.png) | ![Model Output](images/0844v5.png) |
+| ![Ground Truth](images/0852.png) | ![Model Output](images/0852v5.png) |
+| ![Ground Truth](images/0873.png) | ![Model Output](images/0873v5.png) |
+| ![Ground Truth](images/0898.png) | ![Model Output](images/0898v5.png) |
 
 ---
 

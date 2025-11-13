@@ -101,7 +101,7 @@ def main():
     # --------------------------------------------------------------------------------
     # -- Data Loading --
     # --------------------------------------------------------------------------------
-    BATCH_SIZE = 48
+    BATCH_SIZE = 10
 
     # Transforms
     IMG_SIZE = 512
@@ -141,8 +141,8 @@ def main():
     # --------------------------------------------------------------------------------
     epochs = 250
 
-    loss_fn = nn.MSELoss()
-    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4)
+    loss_fn = nn.L1Loss()
+    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
 
     # Learning Rate Scheduler
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs)
