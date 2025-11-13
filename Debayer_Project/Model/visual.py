@@ -4,36 +4,50 @@ from torchvision import transforms
 from PIL import Image
 import torchvision.utils
 
-from Model import unet as un
+from Model.unet import UNet
 
 # --- Configuration ---
-MODEL_PATH = "model_checkpoint.pth"
-# Image path
-BAYER_IMAGE_PATH = "Data/DIV2K_Images/DIV2K_Valid_Bayer/0852.png" 
-OUTPUT_IMAGE_PATH = "output.png"
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# MODEL_PATH = "model_checkpoint.pth"
+MODEL_PATH = "model.pth"
 
-print(f"Loading model from {MODEL_PATH}...")
-model = un.UNet().to(DEVICE)
-checkpoint = torch.load(MODEL_PATH)
-model.load_state_dict(checkpoint['model_state_dict'])
-model.eval()
+VERSION = "v3"
+# Images to be generated
+IMAGE_PATHS = ["0801","0802","0808","0844","0852","0873","0898"]
 
-print(f"Loading image {BAYER_IMAGE_PATH}...")
+for image in IMAGE_PATHS:
+    # Image path
+    BAYER_IMAGE_PATH = "Data/DIV2K_Images/DIV2K_Valid_Bayer/" + image + ".png"
+    OUTPUT_IMAGE_PATH = image + VERSION + ".png"
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-transform = transforms.ToTensor()
+    print(f"Loading model from {MODEL_PATH}...")
+    model = UNet().to(DEVICE)
 
-pil_image = Image.open(BAYER_IMAGE_PATH).convert('L')
-input_tensor = transform(pil_image).unsqueeze(0).to(DEVICE)
+    state_dict = torch.load(MODEL_PATH)
+    new_state_dict = {}
+    for k, v in state_dict.items():
+        new_state_dict[k.replace("module.", "")] = v
 
-print(f"Running inference on image with shape: {input_tensor.shape}")
-# Run inference
-with torch.no_grad():
-    # The model's internal padding/cropping logic will handle the non-256x256 size
-    output_tensor = model(input_tensor)
+    model.load_state_dict(new_state_dict)
+    # checkpoint = torch.load(MODEL_PATH)
+    #model.load_state_dict(checkpoint['model_state_dict'])
+    model.eval()
 
-print(f"Saving output to {OUTPUT_IMAGE_PATH}...")
-# Save the output
-torchvision.utils.save_image(output_tensor[0], OUTPUT_IMAGE_PATH)
+    print(f"Loading image {BAYER_IMAGE_PATH}...")
 
-print("Done!")
+    transform = transforms.ToTensor()
+
+    pil_image = Image.open(BAYER_IMAGE_PATH).convert('L')
+    input_tensor = transform(pil_image).unsqueeze(0).to(DEVICE)
+
+    print(f"Running inference on image with shape: {input_tensor.shape}")
+    # Run inference
+    with torch.no_grad():
+        # The model's internal padding/cropping logic will handle the non-256x256 size
+        output_tensor = model(input_tensor)
+
+    print(f"Saving output to {OUTPUT_IMAGE_PATH}...")
+    # Save the output
+    torchvision.utils.save_image(output_tensor[0], OUTPUT_IMAGE_PATH)
+
+    print("Done!")
