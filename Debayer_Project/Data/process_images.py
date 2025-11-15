@@ -1,137 +1,85 @@
-# OK to leave like this since only going to be running once
-# Ideally, implement parallel processing and optimizing memory loading and usage
-# will significantly reduce runtime (10-15 mins to 1 or 2)
-
-import cv2
 import numpy as np
 import os
-
-M = 10 # Vertical Cells
-N = 10 # Horizontal Cells
+from PIL import Image
 
 # Current Filepath
 CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 # DIV 2K
 DIV2K_DIR = os.path.join(CURRENT_PATH, "DIV2K_Images")
-DIV2K_TRAIN_DIR = os.path.join(DIV2K_DIR, "DIV2K_Train_HR")
-DIV2K_VALID_DIR = os.path.join(DIV2K_DIR, "DIV2K_Valid_HR")
-DIV2K_TRAIN_BAYER_DIR = os.path.join(DIV2K_DIR, "DIV2K_Train_Bayer")
-DIV2K_VALID_BAYER_DIR = os.path.join(DIV2K_DIR, "DIV2K_Valid_Bayer")
+DIV2K_TRAIN_HR = os.path.join(DIV2K_DIR, "DIV2K_Train_HR")
+DIV2K_VALID_HR = os.path.join(DIV2K_DIR, "DIV2K_Valid_HR")
+DIV2K_TRAIN_BAYER = os.path.join(DIV2K_DIR, "DIV2K_Train_Bayer")
+DIV2K_VALID_BAYER = os.path.join(DIV2K_DIR, "DIV2K_Valid_Bayer")
 
-# Final Dataset
-FINAL_DATASET_DIR = os.path.join(CURRENT_PATH, "Final_Dataset_Images")
-FINAL_TRAIN_DIR = os.path.join(FINAL_DATASET_DIR, "Train")
-TRAIN_TARGET_DIR = os.path.join(FINAL_TRAIN_DIR, "Target")
-TRAIN_INPUT_DIR = os.path.join(FINAL_TRAIN_DIR, "Input")
-FINAL_VALIDATE_DIR = os.path.join(FINAL_DATASET_DIR, "Validate")
-VALIDATE_TARGET_DIR = os.path.join(FINAL_VALIDATE_DIR, "Target")
-VALIDATE_INPUT_DIR = os.path.join(FINAL_VALIDATE_DIR, "Input")
-
-
-# Bayer pattern algorithm
-def bayer_img(img, name, directory):
-    # print("Creating Bayer Pattern Image: " + str(name))
+def bayer_img(img_pil, name, directory):
     if os.path.exists(os.path.join(directory,name)):
-        print("Image previously processed, skipping...")
+        print(f"Bayer image {name} previously processed, skipping...")
         return 0
+
+    # Convert the PIL Image (RGB) to a NumPy array (RGB)
+    img_array = np.array(img_pil) 
+    h, w, channels = img_array.shape
+
+    mossaic = np.zeros((h, w), dtype=img_array.dtype)
+
+    # RGGB Mossaic pattern
+    mossaic[0:h:2, 0:w:2] = img_array[0:h:2, 0:w:2, 0] # Top-Left = RED
+    mossaic[0:h:2, 1:w:2] = img_array[0:h:2, 1:w:2, 1] # Top-Right = GREEN
+    mossaic[1:h:2, 0:w:2] = img_array[1:h:2, 0:w:2, 1] # Bottom-Left = GREEN
+    mossaic[1:h:2, 1:w:2] = img_array[1:h:2, 1:w:2, 2] # Bottom-Right = BLUE
+
+    # Convert the numpy mosaic back to a PIL Image (Grayscale 'L')
+    mossaic_img = Image.fromarray(mossaic, 'L')
     
-    h,w, channels = img.shape
-
-    mossaic = np.zeros((h, w), dtype=img.dtype)
-
-    mossaic[0:h:2, 0:w:2] = img[0:h:2, 0:w:2, 2] # red
-    mossaic[1:h:2, 0:w:2] = img[1:h:2, 0:w:2, 1] # green
-    mossaic[0:h:2, 1:w:2] = img[0:h:2, 1:w:2, 1] # green
-    mossaic[1:h:2, 1:w:2] = img[1:h:2, 1:w:2, 0] # blue
-
     # Save as PNG
-    cv2.imwrite(os.path.join(directory, name), mossaic)
-    print("Finished Bayer Pattern Image: " + name)
+    mossaic_img.save(os.path.join(directory, name))
+    print(f"Finished Bayer Pattern Image: {name}")
 
-    return 0
-
-# Split image into chunks
-def split_img(img, name, directory):
-    h,w,channels = img.shape
-    #print("Splitting Image: " + str(name))
-    #print("Height: " + str(h) + ", Width: " + str(w) + ", Channels: ", str(channels))
-
-    # Divide image into a MxN grid
-    h_step = h//M
-    w_step = w//N
-
-    for i in range(M):
-        for j in range(N):
-            # New filename
-            filename = str(i) + str(j) + "_" + name
-            if os.path.exists(os.path.join(directory,filename)):
-                continue
-
-            # Select image chunk
-            top = i * h_step
-            bottom = (i+1) * h_step
-            left = j * w_step
-            right = (j+1) * w_step
-
-            chunk = img[top:bottom, left:right]
-            
-            # Write image to directory
-            cv2.imwrite(os.path.join(directory,filename),chunk)    
-    
-    print("Finished Splitting Image" + str(name))
     return 0
 
 def main():
-    # Training Images
+    # --- Training Images ---
     print("----- Processing Training Images -----")
-    for filename in os.listdir(DIV2K_TRAIN_DIR):
-        print("Started Processing: " + str(filename))
-        # Gets Image
-        img = cv2.imread(os.path.join(DIV2K_TRAIN_DIR, filename))
-        if img is None:
-            raise ValueError("Image not found or could not be read.")
-        
-        # Splits Unmodified Image (Target)
-        split_img(img, filename, TRAIN_TARGET_DIR)
-        print("----------")
+    for filename in os.listdir(DIV2K_TRAIN_HR):
+        if not filename.endswith(('.png', '.jpg', '.jpeg')):
+            continue
+            
+        print(f"Started Processing: {filename}")
+        try:
+            # Gets Image using PIL, ensure it's RGB
+            img_path = os.path.join(DIV2K_TRAIN_HR, filename)
+            img = Image.open(img_path).convert('RGB')
+        except IOError:
+            print(f"Error reading {filename}, skipping.")
+            continue
 
-        # Applies Bayer Filter to Whole Image
-        bayer_img(img, filename, DIV2K_TRAIN_BAYER_DIR)
-        print("----------")
-
-        # Gets Bayer Image
-        img = cv2.imread(os.path.join(DIV2K_TRAIN_BAYER_DIR, filename))
-        if img is None:
-            raise ValueError("Image not found or could not be read.")
-        split_img(img, filename, TRAIN_INPUT_DIR)
+        # Applies Bayer Filter (RGGB) to FULL-RES Image
+        # and saves it directly to the INPUT dir
+        bayer_img(img, filename, DIV2K_TRAIN_BAYER)
         print("----------")
         
     print("----- Finished Processing Training Images -----")
     print("")
 
-    # Validation Images
+    # --- Validation Images ---
     print("----- Processing Validation Images -----")
-    for filename in os.listdir(DIV2K_VALID_DIR):
-        print("Started Processing: " + str(filename))
-        # Gets Image
-        img = cv2.imread(os.path.join(DIV2K_VALID_DIR, filename))
-        if img is None:
-            raise ValueError("Image not found or could not be read.")
-        
-        # Splits Unmodified Image (Target)
-        split_img(img, filename, VALIDATE_TARGET_DIR)
-        print("----------")
+    for filename in os.listdir(DIV2K_VALID_HR):
+        if not filename.endswith(('.png', '.jpg', '.jpeg')):
+            continue
+            
+        print(f"Started Processing: {filename}")
+        try:
+            # Gets Image using PIL, ensure it's RGB
+            img_path = os.path.join(DIV2K_VALID_HR, filename)
+            img = Image.open(img_path).convert('RGB')
+        except IOError:
+            print(f"Error reading {filename}, skipping.")
+            continue
 
-        # Applies Bayer Filter to Whole Image
-        bayer_img(img, filename, DIV2K_VALID_BAYER_DIR)
-        print("----------")
-
-        # Gets Bayer Image
-        img = cv2.imread(os.path.join(DIV2K_VALID_BAYER_DIR, filename))
-        if img is None:
-            raise ValueError("Image not found or could not be read.")
-        split_img(img, filename, VALIDATE_INPUT_DIR)
+        # Applies Bayer Filter (RGGB) to FULL-RES Image
+        # and saves it directly to the INPUT dir
+        bayer_img(img, filename, DIV2K_VALID_BAYER)
         print("----------")
         
     print("----- Finished Processing Validation Images -----")
@@ -139,4 +87,6 @@ def main():
 
     return 0
 
-main()
+# --- Run the script ---
+if __name__ == "__main__":
+    main()

@@ -160,13 +160,31 @@ Additionally, there is significant detail loss in dark areas, which is especiall
 
 V5 showed a the model was still overfitting, but on the more traditional way. After 3,500 epochs, training loss was around an order of magnitude smaller than the validation loss (training loss [~0.0004, ~0.0001], validation loss ~0.002). Additionally, validation loss had no significant change when compared to V4, so the training process was killed (hence no complete loss list).
 
-**V6 additional overfit and loss fn improvements:**
+**V6, V7, V7 additional overfit and loss fn improvements:**
 
 V6 targets overfit in two ways: Added nn.dropout(0.25) at bottleneck layer and improved dataset generation by adding random horizontal and vertical flips.
 
 Additionally V6 changed the loss function to L1Loss instead of MSE loss with hopes of minimizing the model crushing the dark colors and to produce a sharper image.
 
 Epoch size was also tweaked to optimize for minimal GPU downtime: artificially increased training dataset by 10x so each epoch goes through 8,000 images instead of 800. Thus total epochs decreased back to 250 (not 2,500 because the significantly larger 512x512px images are around 10x larger than old images, wanted to keep training time similar at around 12 hours).
+
+Results were disappointing, with the loss funciton showing much less loss than was actually visible on large images. It was incredibly frustrating to see that the model was not learning and was making the same mistakes as before (blue/orange color swap, red/purple swap). 
+
+V7 and V7.5 represent a series of changes with the hopes of tackling all underlying issues. The two greatest improvements were: fixing how the bayer images were generated, this time by opting out of using openCV libraries and going with PIL, which natively opens images in RGB format. The second was providing more information to the model (dataset.py) by taking the single-channel PIL 'L' image and unpacking it into 4 channels to split the R, G, B pixel intensities into each channel.
+
+This way, the model shouldn't have to learn what pixel color it is seeing, as it is provided with that information.
+
+| Epoch | Validation Avg Loss |
+|--------|----------------------|
+| 1      | 0.084605             |
+| 10     | 0.070043             |
+| 20     | 0.063610             |
+| 25     | 0.062039             |
+
+The model ran for a preliminary 25 epochs, and in spite of the avg loss suggesting more errors, the images looked better, suggesting that the model was finally learning and on the right track. However, there was still overfit (validation vs training discrepancies, where validation loss was around 0.06 and training around 0.02).
+
+**V8: Charbonnier Gradient Loss**
+
 
 ---
 
@@ -182,12 +200,12 @@ For more images, and a version history of heach image, see images folder or the 
 
 | Ground Truth | Model Output |
 |---------------|--------------|
-| ![Ground Truth](images/0801.png) | ![Model Output](images/0801v5.png) |
-| ![Ground Truth](images/0802.png) | ![Model Output](images/0802v5.png) |
-| ![Ground Truth](images/0844.png) | ![Model Output](images/0844v5.png) |
-| ![Ground Truth](images/0852.png) | ![Model Output](images/0852v5.png) |
-| ![Ground Truth](images/0873.png) | ![Model Output](images/0873v5.png) |
-| ![Ground Truth](images/0898.png) | ![Model Output](images/0898v5.png) |
+| ![Ground Truth](images/0801.png) | ![Model Output](images/0801v7.png) |
+| ![Ground Truth](images/0802.png) | ![Model Output](images/0802v7.png) |
+| ![Ground Truth](images/0844.png) | ![Model Output](images/0844v7.png) |
+| ![Ground Truth](images/0852.png) | ![Model Output](images/0852v7.png) |
+| ![Ground Truth](images/0873.png) | ![Model Output](images/0873v7.png) |
+| ![Ground Truth](images/0898.png) | ![Model Output](images/0898v7.png) |
 
 ---
 

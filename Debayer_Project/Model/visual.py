@@ -3,6 +3,7 @@ import torch.nn as nn
 from torchvision import transforms
 from PIL import Image
 import torchvision.utils
+import numpy as np
 
 from Model.unet import UNet
 
@@ -38,7 +39,21 @@ for image in IMAGE_PATHS:
     transform = transforms.ToTensor()
 
     pil_image = Image.open(BAYER_IMAGE_PATH).convert('L')
-    input_tensor = transform(pil_image).unsqueeze(0).to(DEVICE)
+    bayer_array = np.array(pil_image) # This is now a 2D numpy array
+    h, w = bayer_array.shape            # This will now work
+    channel_r = np.zeros_like(bayer_array)
+    channel_g1 = np.zeros_like(bayer_array)
+    channel_g2 = np.zeros_like(bayer_array)
+    channel_b = np.zeros_like(bayer_array)
+
+    channel_r[0::2, 0::2] = bayer_array[0::2, 0::2]  # Red
+    channel_g1[0::2, 1::2] = bayer_array[0::2, 1::2] # Green 1
+    channel_g2[1::2, 0::2] = bayer_array[1::2, 0::2] # Green 2
+    channel_b[1::2, 1::2] = bayer_array[1::2, 1::2]  # Blue
+
+    input_4channel = np.stack([channel_r, channel_g1, channel_g2, channel_b], axis=-1)
+
+    input_tensor = transform(input_4channel).unsqueeze(0).to(DEVICE)
 
     print(f"Running inference on image with shape: {input_tensor.shape}")
     # Run inference

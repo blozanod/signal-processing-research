@@ -3,10 +3,6 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 
-# --------------------------------------------------------------------------------
-# -- Model Definition --
-# --------------------------------------------------------------------------------
-
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
         super().__init__()
@@ -29,7 +25,7 @@ class UNet(nn.Module):
 
         # Stacked DoubleConv Blocks (total of 8 convolution layers)
         # Down Layers
-        self.down1 = DoubleConv(1, 32)
+        self.down1 = DoubleConv(4, 32)
         self.down2 = DoubleConv(32, 64)
         self.down3 = DoubleConv(64, 128)
         self.down4 = DoubleConv(128, 256)
@@ -63,7 +59,7 @@ class UNet(nn.Module):
         self.sigmoid = nn.Sigmoid() # Squashes values from 0-1 to avoid oversaturation/blown out images
 
         # Dropout
-        self.dropout = nn.Dropout2d(0.25)
+        self.dropout = nn.Dropout2d(0.15)
 
     def forward(self, x):
         # Padding so every image size works

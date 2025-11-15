@@ -13,9 +13,10 @@ import torch.distributed as dist
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-# Dataset and UNet Scripts
-from Data.make_dataset import ImageDataset
+# Script Imports
+from Data.dataset import ImageDataset
 from Model.unet import UNet
+from Model.loss import CharbonnierGradientLoss as CGLoss
 
 # Directories
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -97,10 +98,7 @@ def cleanup():
 def main():
     is_main_process = (dist.get_rank() == 0)
 
-
-    # --------------------------------------------------------------------------------
-    # -- Data Loading --
-    # --------------------------------------------------------------------------------
+    # Data loading
     BATCH_SIZE = 10
 
     # Transforms
@@ -122,34 +120,29 @@ def main():
     if is_main_process:
         print(f"Validation Data: Found {len(valid_dataset)} image pairs.")
 
-    # --------------------------------------------------------------------------------
-    # -- Model --
-    # --------------------------------------------------------------------------------
+
     # Use CUDA
     device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
     if is_main_process:
         print(f"Using {device} device")
 
+    # Initialize Model
     model = UNet().to(device)
     model = DDP(model, device_ids=[device])
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     if is_main_process:
         print(model)
 
-    # --------------------------------------------------------------------------------
-    # -- Optimization --
-    # --------------------------------------------------------------------------------
-    epochs = 250
+    # Optimizer & Epochs
+    epochs = 25
 
-    loss_fn = nn.L1Loss()
+    loss_fn = loss_fn = CGLoss(eps=1e-3, grad_weight=0.05)
     optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
 
     # Learning Rate Scheduler
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs)
 
-    # --------------------------------------------------------------------------------
-    # -- Checkpointing --
-    # --------------------------------------------------------------------------------
+    # Load Checkpoints
     start_epoch = 0
     CHECKPOINT_PATH = "model_checkpoint.pth"
 
@@ -192,10 +185,10 @@ def main():
         print("Training Done!")
         torch.save(model.state_dict(), "model.pth")
         print("Saved PyTorch Model State to model.pth")
+        # Saves csv file with test losses
         with open(filename, 'w', newline='') as f:
             writer = csv.writer(f)
             
-            # Optional: Write a header row
             writer.writerow(['Epoch_Loss']) 
             
             # Write each value as a separate row
