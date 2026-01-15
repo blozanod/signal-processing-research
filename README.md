@@ -75,7 +75,7 @@ The model, defined in **`unet.py`**, is a **U-Net architecture** — a structure
 
 ---
 
-### V4 Training Results (250 epochs)
+### V9.1 Training Results (50 epochs)
 
 | Epoch | Validation Avg Loss |
 |--------|----------------------|
@@ -183,9 +183,19 @@ This way, the model shouldn't have to learn what pixel color it is seeing, as it
 
 The model ran for a preliminary 25 epochs, and in spite of the avg loss suggesting more errors, the images looked better, suggesting that the model was finally learning and on the right track. However, there was still overfit (validation vs training discrepancies, where validation loss was around 0.06 and training around 0.02).
 
-**V8: Charbonnier Gradient Loss**
+**V9.1: Charbonnier Loss, Packed RGGB Arrays, 128x128px Crops**
+Version 9.1 implements charbonnier loss, which is a differentiable L1 loss and acts like L2 (MSE) loss at low values. More importantly, it significantly changes how images are introduced into the model: Given a image with size (H,W), instead of generating four blank arrays of size (H,W) and only populating them with their respective color channel, now four arrays with dimensions (H/2, W/2) are generated. This makes the problem easier for the model, as it no longer has to differentiate between a 0 because the channel is off at that location vs a 0 because the channel doesn't exist at that location. In essence, it no longer has to mask the channels itself.
+Additionally, the crop size being fed to the model are 128x128px, down from 512x512px, so 16x smaller. This results in more 'imperfect' images being fed to the model, as well as more variety being generated.
 
+The loss function describes similar loss value trajectories for both training and validation, with training loss values being consistently slightly lower. This is likely not due to overfit, as the loss values are similar. However it may be concerning given that towards the back half of training, the training loss was decreasing at a greater rate than the validation loss. In the end, there is a 12.6% difference between the last training and testing loss values.
 
+<p align="center">
+  <img src="images/v9.1_loss_graph.png" alt="Loss Function v9.1" width="50%">
+</p>
+
+The results are extremely satisfying. All artifacting experienced in previous versions has been eliminated, and when comparing the large full-resolution images, there is little to no visible difference. However, when zooming in and comparing high frequency textures, there is a clear nonegligible difference. The model opts to smoothe out these features, so these textures are largely missing. This is likely due to the way it minimizes the overall loss. Thus, a significantly more complex loss function might be necessary to address this issue.
+
+This issue is paramount to the project, as working with and preserving low-resolution images is the whole point, and is where applications may be possible.
 ---
 
 ### Current Visual Results
@@ -200,15 +210,25 @@ For more images, and a version history of heach image, see images folder or the 
 
 | Ground Truth | Model Output |
 |---------------|--------------|
-| ![Ground Truth](images/0801.png) | ![Model Output](images/0801v7.png) |
-| ![Ground Truth](images/0802.png) | ![Model Output](images/0802v7.png) |
-| ![Ground Truth](images/0844.png) | ![Model Output](images/0844v7.png) |
-| ![Ground Truth](images/0852.png) | ![Model Output](images/0852v7.png) |
-| ![Ground Truth](images/0873.png) | ![Model Output](images/0873v7.png) |
-| ![Ground Truth](images/0898.png) | ![Model Output](images/0898v7.png) |
+| ![Ground Truth](images/0801.png) | ![Model Output](images/0801v9.1.png) |
+| ![Ground Truth](images/0802.png) | ![Model Output](images/0802v9.1.png) |
+| ![Ground Truth](images/0844.png) | ![Model Output](images/0844v9.1.png) |
+| ![Ground Truth](images/0852.png) | ![Model Output](images/0852v9.1.png) |
+| ![Ground Truth](images/0873.png) | ![Model Output](images/0873v9.1.png) |
+| ![Ground Truth](images/0898.png) | ![Model Output](images/0898v9.1.png) |
 
+Due to the images being nearly identical, a 64x64px center crop of each image is compared below. This shows more granular detail.
+
+| Ground Truth (Left) vs Model Output (Right) |
+|---------------|
+| ![Comparison Image](images/comparisons/0801_compare.png) |
+| ![Comparison Image](images/comparisons/0802_compare.png) |
+| ![Comparison Image](images/comparisons/0844_compare.png) |
+| ![Comparison Image](images/comparisons/0852_compare.png) |
+| ![Comparison Image](images/comparisons/0873_compare.png) |
+| ![Comparison Image](images/comparisons/0898_compare.png) |
 ---
 
 **Author:** Bernardo Lozano  
-**Frameworks Used:** PyTorch, NumPy, OpenCV  
+**Frameworks Used:** PyTorch, NumPy   
 **Dataset:** DIV2K

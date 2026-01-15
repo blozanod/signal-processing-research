@@ -29,29 +29,32 @@ class UNet(nn.Module):
         self.down2 = DoubleConv(32, 64)
         self.down3 = DoubleConv(64, 128)
         self.down4 = DoubleConv(128, 256)
-        self.down5 = DoubleConv(256, 512)
+        # self.down5 = DoubleConv(256, 512)
 
         # Bottleneck Layer
+        self.bottleneck1 = DoubleConv(256,512, stride=1)
         self.bottleneck = DoubleConv(512,512, stride=1)
         
         # Up Layers
-        self.up_conv1 = nn.ConvTranspose2d(512, 512, stride=2, kernel_size=2)
-        self.up1 = DoubleConv(1024,256)
+        self.up_conv1 = nn.ConvTranspose2d(512, 256, stride=2, kernel_size=2)
+        self.up1 = DoubleConv(512,256)
 
-        self.up_conv2 = nn.ConvTranspose2d(256, 256, stride=2, kernel_size=2)
-        self.up2 = DoubleConv(512,128)
+        self.up_conv2 = nn.ConvTranspose2d(256, 128, stride=2, kernel_size=2)
+        self.up2 = DoubleConv(256,128)
 
-        self.up_conv3 = nn.ConvTranspose2d(128, 128, stride=2, kernel_size=2)
-        self.up3 = DoubleConv(256,64)
+        self.up_conv3 = nn.ConvTranspose2d(128, 64, stride=2, kernel_size=2)
+        self.up3 = DoubleConv(128,64)
 
-        self.up_conv4 = nn.ConvTranspose2d(64, 64, stride=2, kernel_size=2)
-        self.up4 = DoubleConv(128,32)
+        self.up_conv4 = nn.ConvTranspose2d(64, 32, stride=2, kernel_size=2)
+        self.up4 = DoubleConv(64,32)
 
-        self.up_conv5 = nn.ConvTranspose2d(32, 32, stride=2, kernel_size=2)
-        self.up5 = DoubleConv(64,32)
+        # self.up_conv5 = nn.ConvTranspose2d(32, 32, stride=2, kernel_size=2)
+        # self.up5 = DoubleConv(64,32)
 
         # Final Layer
-        self.output = nn.Conv2d(32, 3, kernel_size=1, stride=1)
+        self.output = nn.Conv2d(32, 12, kernel_size=1, stride=1) # Didn't change in channels after removing up5
+
+        self.pixelshuffle = nn.PixelShuffle(2)
 
         # Pooling
         self.maxpool = nn.MaxPool2d((2, 2)) # Averages each feature map to 1x1
@@ -65,8 +68,8 @@ class UNet(nn.Module):
         # Padding so every image size works
         _, _, H, W = x.shape
         # Calculate the padding needed to make H and W multiples of 32
-        pad_h = (32 - H % 32) % 32
-        pad_w = (32 - W % 32) % 32
+        pad_h = (16 - H % 16) % 16
+        pad_w = (16 - W % 16) % 16
         # Apply padding
         x_padded = F.pad(x, (0, pad_w, 0, pad_h), "reflect")
 
@@ -83,39 +86,49 @@ class UNet(nn.Module):
         skip4 = self.down4(pool3)
         pool4 = self.maxpool(skip4)
 
-        skip5 = self.down5(pool4)
-        pool5 = self.maxpool(skip5)
+        # Commented out for new 64x64 image patch size
+        # skip5 = self.down5(pool4)
+        # pool5 = self.maxpool(skip5)
 
-        # Bottleneck
-        bottleneck = self.bottleneck(pool5)
+        # Bottleneck (x3)
+        bottleneck1 = self.bottleneck1(pool4)
+        bottleneck1 = self.dropout(bottleneck1)
+
+        bottleneck = self.bottleneck(bottleneck1)
+        bottleneck = self.dropout(bottleneck)
+
+        bottleneck = self.bottleneck(bottleneck)
         bottleneck = self.dropout(bottleneck)
 
         # Up (Decoder)
         up_conv1 = self.up_conv1(bottleneck)
-        concat1 = torch.cat([up_conv1, skip5], dim=1)
+        concat1 = torch.cat([up_conv1, skip4], dim=1)
         up1 = self.up1(concat1)
 
         up_conv2 = self.up_conv2(up1)
-        concat2 = torch.cat([up_conv2, skip4], dim=1)
+        concat2 = torch.cat([up_conv2, skip3], dim=1)
         up2 = self.up2(concat2)
 
         up_conv3 = self.up_conv3(up2)
-        concat3 = torch.cat([up_conv3, skip3], dim=1)
+        concat3 = torch.cat([up_conv3, skip2], dim=1)
         up3 = self.up3(concat3)
 
         up_conv4 = self.up_conv4(up3)
-        concat4 = torch.cat([up_conv4, skip2], dim=1)
+        concat4 = torch.cat([up_conv4, skip1], dim=1)
         up4 = self.up4(concat4)
 
-        up_conv5 = self.up_conv5(up4)
-        concat5 = torch.cat([up_conv5, skip1], dim=1)
-        up5 = self.up5(concat5)
+        # Commented out for new 64x64 image patch size
+        # up_conv5 = self.up_conv5(up4)
+        # concat5 = torch.cat([up_conv5, skip1], dim=1)
+        # up5 = self.up5(concat5)
 
         # Final Layer
-        out_padded = self.output(up5)
+        out_padded = self.output(up4)
+
+        out_padded = self.pixelshuffle(out_padded)
 
         # Crop out layer
-        out = out_padded[:, :, :H, :W]
+        out = out_padded[:, :, :H*2, :W*2]
 
         # Squashed
         out = self.sigmoid(out)

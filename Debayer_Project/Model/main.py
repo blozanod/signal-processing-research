@@ -16,7 +16,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 # Script Imports
 from Data.dataset import ImageDataset
 from Model.unet import UNet
-from Model.loss import CharbonnierGradientLoss as CGLoss
+from Model.loss import L1_Charbonnier_loss as CharbonnierLoss
 
 # Directories
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -27,15 +27,18 @@ OUTPUT_DIR = os.path.join(DATA_DIR,"DIV2K_Train_HR")
 VALID_INPUT_DIR = os.path.join(DATA_DIR,"DIV2K_Valid_Bayer")
 VALID_OUTPUT_DIR = os.path.join(DATA_DIR,"DIV2K_Valid_HR")
 
+TRAIN_LOSSESS = []
 TEST_LOSSESS = []
 filename = "loss_history.csv"
 # --------------------------------------------------------------------------------
 # -- Training & Testing Functions --
 # --------------------------------------------------------------------------------
+
 def train(dataloader, model, loss_fn, optimizer, device):
     is_main_process = (dist.get_rank() == 0)
 
     model.train()
+    train_loss = 0
 
     # Wrap the dataloader with tqdm
     # leave=False means the bar disappears after the loop is done
@@ -46,15 +49,21 @@ def train(dataloader, model, loss_fn, optimizer, device):
 
         # Compute prediction error
         pred = model(X)
-        loss = loss_fn(pred, y)
+        batch_loss = loss_fn(pred, y)
+        train_loss += batch_loss.item()
 
         # Backpropagation
-        loss.backward()
+        batch_loss.backward()
         optimizer.step()
         optimizer.zero_grad()
 
         # Update the progress bar's description with the current loss
-        loop.set_postfix(loss=loss.item())
+        loop.set_postfix(loss=batch_loss.item())
+    
+    train_loss /= len(dataloader)
+    if is_main_process:
+        print(f"Training Error: \n Avg loss: {train_loss:>8f} \n")
+        TRAIN_LOSSESS.append(train_loss)
 
 def validate(dataloader, model, loss_fn, device):
     is_main_process = (dist.get_rank() == 0)
@@ -99,44 +108,66 @@ def main():
     is_main_process = (dist.get_rank() == 0)
 
     # Data loading
-    BATCH_SIZE = 10
+    BATCH_SIZE = 64
+    VALID_BATCH_SIZE = 10
 
     # Transforms
-    IMG_SIZE = 512
+    IMG_SIZE = 128 # Packed becomes 64x64
+    VALID_IMG_SIZE = 512
 
     transform = transforms.ToTensor()
 
     # Create train dataset and dataloader
-    train_dataset = ImageDataset(INPUT_DIR, OUTPUT_DIR, transform, crop_size=IMG_SIZE, is_train=True)
+    train_dataset = ImageDataset(INPUT_DIR, OUTPUT_DIR, transform, crop_size_raw=IMG_SIZE, is_train=True)
     train_sampler = DistributedSampler(train_dataset)
-    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, num_workers=4, sampler=train_sampler)
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=BATCH_SIZE,
+        num_workers=4,
+        sampler=train_sampler,
+        pin_memory=True,
+        persistent_workers=True,
+        prefetch_factor=4,
+        drop_last=True
+    )
     if is_main_process:
         print(f"Training Data: Found {len(train_dataset)} image pairs.")
 
     # Create validation dataset and dataloader
-    valid_dataset = ImageDataset(VALID_INPUT_DIR, VALID_OUTPUT_DIR, transform, crop_size=IMG_SIZE, is_train=False)
+    valid_dataset = ImageDataset(VALID_INPUT_DIR, VALID_OUTPUT_DIR, transform, crop_size_raw=VALID_IMG_SIZE, is_train=False)
     valid_sampler = DistributedSampler(valid_dataset)
-    valid_dataloader = DataLoader(valid_dataset, batch_size=BATCH_SIZE, num_workers=4, sampler=valid_sampler)
+    valid_dataloader = DataLoader(
+        valid_dataset,
+        batch_size=VALID_BATCH_SIZE,
+        num_workers=4,
+        sampler=valid_sampler,
+        pin_memory=True,
+        persistent_workers=True,
+        prefetch_factor=4,
+        drop_last=False
+    )
     if is_main_process:
         print(f"Validation Data: Found {len(valid_dataset)} image pairs.")
 
 
     # Use CUDA
-    device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+    local_rank = int(os.environ["LOCAL_RANK"])
+    torch.cuda.set_device(local_rank)
+    device = torch.device("cuda", local_rank)
     if is_main_process:
         print(f"Using {device} device")
 
     # Initialize Model
     model = UNet().to(device)
-    model = DDP(model, device_ids=[device])
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    model = DDP(model, device_ids=[local_rank])
     if is_main_process:
         print(model)
 
     # Optimizer & Epochs
-    epochs = 25
+    epochs = 50
 
-    loss_fn = loss_fn = CGLoss(eps=1e-3, grad_weight=0.05)
+    loss_fn = CharbonnierLoss()
     optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
 
     # Learning Rate Scheduler
@@ -160,7 +191,7 @@ def main():
         if is_main_process:
             print(f"Error loading checkpoint: {e}. Starting from scratch.")
 
-    # Runs model through epochs (generations)
+    # Runs model
     for t in range(epochs):
         train_sampler.set_epoch(t)
         if is_main_process:
@@ -170,7 +201,6 @@ def main():
         scheduler.step()
 
         # Checkpoints after each epoch
-        # This saves your progress after every epoch.
         checkpoint = {
             'epoch': t + 1,
             'model_state_dict': model.state_dict(),
@@ -180,21 +210,22 @@ def main():
             torch.save(checkpoint, CHECKPOINT_PATH)
             print(f"Saved checkpoint for epoch {t + 1}")
 
-    # This saves only the learned weights, which is all you need for making predictions.
+    # Save model
     if is_main_process:
         print("Training Done!")
         torch.save(model.state_dict(), "model.pth")
         print("Saved PyTorch Model State to model.pth")
+        
         # Saves csv file with test losses
         with open(filename, 'w', newline='') as f:
             writer = csv.writer(f)
             
-            writer.writerow(['Epoch_Loss']) 
+            writer.writerow(['Test_Loss', 'Train_Loss']) 
             
             # Write each value as a separate row
-            for loss in TEST_LOSSESS:
-                writer.writerow([loss]) # writerow takes a list, so we wrap 'loss'
-                
+            for i in range(len(TEST_LOSSESS)):
+                writer.writerow([TEST_LOSSESS[i], TRAIN_LOSSESS[i]]) # writerow takes a list, so we wrap 'loss'
+
         print(f"Loss history saved to '{filename}'.")
 
 

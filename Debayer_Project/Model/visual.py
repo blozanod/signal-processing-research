@@ -39,17 +39,17 @@ for image in IMAGE_PATHS:
     transform = transforms.ToTensor()
 
     pil_image = Image.open(BAYER_IMAGE_PATH).convert('L')
-    bayer_array = np.array(pil_image) # This is now a 2D numpy array
-    h, w = bayer_array.shape            # This will now work
-    channel_r = np.zeros_like(bayer_array)
-    channel_g1 = np.zeros_like(bayer_array)
-    channel_g2 = np.zeros_like(bayer_array)
-    channel_b = np.zeros_like(bayer_array)
 
-    channel_r[0::2, 0::2] = bayer_array[0::2, 0::2]  # Red
-    channel_g1[0::2, 1::2] = bayer_array[0::2, 1::2] # Green 1
-    channel_g2[1::2, 0::2] = bayer_array[1::2, 0::2] # Green 2
-    channel_b[1::2, 1::2] = bayer_array[1::2, 1::2]  # Blue
+    bayer_array = np.array(pil_image) # This is now a 2D numpy array
+    h, w = bayer_array.shape
+    h = (h // 2) * 2
+    w = (w // 2) * 2
+    bayer_array = bayer_array[:h, :w]
+
+    channel_r  = bayer_array[0::2, 0::2]  # Red
+    channel_g1 = bayer_array[0::2, 1::2]  # Green 1
+    channel_g2 = bayer_array[1::2, 0::2]  # Green 2
+    channel_b  = bayer_array[1::2, 1::2]  # Blue
 
     input_4channel = np.stack([channel_r, channel_g1, channel_g2, channel_b], axis=-1)
 
