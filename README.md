@@ -75,20 +75,6 @@ The model, defined in **`unet.py`**, is a **U-Net architecture** — a structure
 
 ---
 
-### V9.1 Training Results (50 epochs)
-
-| Epoch | Validation Avg Loss |
-|--------|----------------------|
-| 1      | 0.007502             |
-| 20     | 0.000284             |
-| 200    | 0.000130             |
-| 250    | 0.000127             |
-
-This decreasing loss indicates the model is learning.  
-Visual confirmation of the output can be generated using **`visual.py`**.
-
----
-
 ### Validation & Current Status
 
 **V1 ran for 4 generations as a proof-of-concept, conclusions below:**
@@ -196,6 +182,8 @@ The loss function describes similar loss value trajectories for both training an
 The results are extremely satisfying. All artifacting experienced in previous versions has been eliminated, and when comparing the large full-resolution images, there is little to no visible difference. However, when zooming in and comparing high frequency textures, there is a clear nonegligible difference. The model opts to smoothe out these features, so these textures are largely missing. This is likely due to the way it minimizes the overall loss. Thus, a significantly more complex loss function might be necessary to address this issue.
 
 This issue is paramount to the project, as working with and preserving low-resolution images is the whole point, and is where applications may be possible.
+
+
 ---
 
 ### Current Visual Results
