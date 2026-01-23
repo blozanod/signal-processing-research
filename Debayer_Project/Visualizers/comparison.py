@@ -70,14 +70,14 @@ def main():
     for file_id in target_ids:
         # Define input filenames
         orig_filename = f"{file_id}.png"
-        ver_filename = f"{file_id}v9.1.png"
+        ver_filename = f"{file_id}v10.png"
         
         # Define full paths
-        path_orig = os.path.join(current_dir, orig_filename)
-        path_ver = os.path.join(current_dir, ver_filename)
+        path_orig = os.path.join("../images", orig_filename)
+        path_ver = os.path.join("../images", ver_filename)
         
         # Output filename (e.g., "0801_compare.png")
-        path_out = os.path.join(output_dir, f"{file_id}_compare.png")
+        path_out = os.path.join(output_dir, f"{file_id}v10_compare.png")
         
         create_comparison(file_id, path_orig, path_ver, path_out, crop_size, scale_factor)
 

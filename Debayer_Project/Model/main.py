@@ -16,7 +16,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 # Script Imports
 from Data.dataset import ImageDataset
 from Model.unet import UNet
-from Model.loss import L1_Charbonnier_loss as CharbonnierLoss
+from Model.loss import CombinedLoss
 
 # Directories
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -92,7 +92,7 @@ def validate(dataloader, model, loss_fn, device):
     if is_main_process:
         print(f"Validation Error: \n Avg loss: {test_loss:>8f} \n")
         TEST_LOSSESS.append(test_loss)
-    
+    return test_loss
 
 # --------------------------------------------------------------------------------
 # -- DDP Functions --
@@ -165,9 +165,9 @@ def main():
         print(model)
 
     # Optimizer & Epochs
-    epochs = 50
+    epochs = 250
 
-    loss_fn = CharbonnierLoss()
+    loss_fn = CombinedLoss().to(device)
     optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
 
     # Learning Rate Scheduler
@@ -192,12 +192,14 @@ def main():
             print(f"Error loading checkpoint: {e}. Starting from scratch.")
 
     # Runs model
+    best_valid_loss = float('inf')
+
     for t in range(epochs):
         train_sampler.set_epoch(t)
         if is_main_process:
             print(f"Epoch {t+1}\n-------------------------------")
         train(train_dataloader, model, loss_fn, optimizer, device)
-        validate(valid_dataloader, model, loss_fn, device)
+        current_valid_loss = validate(valid_dataloader, model, loss_fn, device)
         scheduler.step()
 
         # Checkpoints after each epoch
@@ -209,6 +211,11 @@ def main():
         if is_main_process:
             torch.save(checkpoint, CHECKPOINT_PATH)
             print(f"Saved checkpoint for epoch {t + 1}")
+            # Save best 
+            if current_valid_loss < best_valid_loss:
+                best_valid_loss = current_valid_loss
+                torch.save(model.state_dict(), "best_model.pth")
+                print(f"Saved new best model with validation loss: {best_valid_loss:.6f}")
 
     # Save model
     if is_main_process:

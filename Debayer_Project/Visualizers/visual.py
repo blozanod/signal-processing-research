@@ -1,3 +1,5 @@
+import os
+import sys
 import torch
 import torch.nn as nn
 from torchvision import transforms
@@ -5,13 +7,20 @@ from PIL import Image
 import torchvision.utils
 import numpy as np
 
+# 1. Get the directory of the current script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# 2. Get the parent directory (where 'Model' folder is located)
+parent_dir = os.path.dirname(current_dir)
+# 3. Add parent directory to sys.path
+sys.path.append(parent_dir)
+
 from Model.unet import UNet
 
 # --- Configuration ---
 # MODEL_PATH = "model_checkpoint.pth"
 MODEL_PATH = "model.pth"
 
-VERSION = "v3"
+VERSION = "v10"
 # Images to be generated
 IMAGE_PATHS = ["0801","0802","0808","0844","0852","0873","0898"]
 

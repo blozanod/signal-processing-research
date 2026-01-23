@@ -35,19 +35,36 @@ class ImageDataset(Dataset):
         assert len(self.input_filenames) == len(self.output_filenames), "Input and Output directories have different length"
 
         self.to_tensor = transforms.ToTensor()
-    
+
+        # Cache all images to RAM for efficiency
+        self.cached_inputs = []
+        self.cached_outputs = []
+
+        unique_length = len(self.input_filenames) // enhanced if is_train else len(self.input_filenames)
+        
+        for i in range(unique_length):
+            input_path = os.path.join(self.input_dir, self.input_filenames[i])
+            output_path = os.path.join(self.output_dir, self.output_filenames[i])
+
+            # Read images
+            input_image = torchvision.io.read_image(input_path)
+            output_image = torchvision.io.read_image(output_path)
+
+            # Add to cache
+            self.cached_inputs.append(input_image)
+            self.cached_outputs.append(output_image)
+
     def __len__(self):
         return len(self.input_filenames)
     
     def __getitem__(self, index):
-        base_len = len(self.input_filenames) // enhanced if self.is_train else len(self.input_filenames)
+        # Calculate adjusted index to retrieve image
+        base_len = len(self.cached_inputs)
         adj_index = index % base_len
 
-        input_path = os.path.join(self.input_dir, self.input_filenames[adj_index])
-        output_path = os.path.join(self.output_dir, self.output_filenames[adj_index])
-
-        input_image = torchvision.io.read_image(input_path)
-        output_image = torchvision.io.read_image(output_path)
+        # Retrieve cached images
+        input_image = self.cached_inputs[adj_index]
+        output_image = self.cached_outputs[adj_index]
 
         # input_image is [1,H,W] if grayscale file, otherwise take one channel
         if input_image.shape[0] > 1:

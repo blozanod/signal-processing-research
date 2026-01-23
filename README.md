@@ -183,6 +183,33 @@ The results are extremely satisfying. All artifacting experienced in previous ve
 
 This issue is paramount to the project, as working with and preserving low-resolution images is the whole point, and is where applications may be possible.
 
+VS OpenCV Debayer on Kodak Image Dataset:
+| Metric | Result |
+|--------|----------------------|
+| OpenCV PSNR | 29.12 dB        |
+| UNet Model PSNR | 30.07 dB    |
+| UNet Model SSIM | 0.8932      |
+| Improvement     | +0.95 dB    |
+
+
+**V10: Combined Loss & Performance Optimizations**
+Version 10 changes the loss function into a mixture between charbonnier loss, perceptual (vgg) loss, and edge loss (sobel filters). This is done to address the issues regarding high frequency textures.
+
+The results are extremely satisfying, the zoomed in comparisons are nearly identical. Mathematically, when using the Kidak Image Dataset and compairing with OpenCV's baseline demosaicking, a +8.92 dB PSNR improvement is measured. This is leagues better than the +0.95 dB improvement recorded by the v9.1 model.
+
+The model was trained for 250 epochs. This was possible as I preloaded the entire training and validation datasets into RAM before the model started training, massively reducing a bottleneck that was especially present in v9.1. The training/testing loss functions suggest the model was learning continuously and reached a minimum around epoch 200. The best model was saved.
+
+<p align="center">
+  <img src="images/v10_loss_graph.png" alt="Loss Function v9.1" width="50%">
+</p>
+
+VS OpenCV Debayer on Kodak Image Dataset:
+| Metric | Result |
+|--------|----------------------|
+| OpenCV PSNR | 29.12 dB        |
+| UNet Model PSNR | 38.04 dB    |
+| UNet Model SSIM | 0.9810      |
+| Improvement     | +8.92 dB    |
 
 ---
 
@@ -198,23 +225,23 @@ For more images, and a version history of heach image, see images folder or the 
 
 | Ground Truth | Model Output |
 |---------------|--------------|
-| ![Ground Truth](images/0801.png) | ![Model Output](images/0801v9.1.png) |
-| ![Ground Truth](images/0802.png) | ![Model Output](images/0802v9.1.png) |
-| ![Ground Truth](images/0844.png) | ![Model Output](images/0844v9.1.png) |
-| ![Ground Truth](images/0852.png) | ![Model Output](images/0852v9.1.png) |
-| ![Ground Truth](images/0873.png) | ![Model Output](images/0873v9.1.png) |
-| ![Ground Truth](images/0898.png) | ![Model Output](images/0898v9.1.png) |
+| ![Ground Truth](images/0801.png) | ![Model Output](images/0801v10.png) |
+| ![Ground Truth](images/0802.png) | ![Model Output](images/0802v10.png) |
+| ![Ground Truth](images/0844.png) | ![Model Output](images/0844v10.png) |
+| ![Ground Truth](images/0852.png) | ![Model Output](images/0852v10.png) |
+| ![Ground Truth](images/0873.png) | ![Model Output](images/0873v10.png) |
+| ![Ground Truth](images/0898.png) | ![Model Output](images/0898v10.png) |
 
 Due to the images being nearly identical, a 64x64px center crop of each image is compared below. This shows more granular detail.
 
 | Ground Truth (Left) vs Model Output (Right) |
 |---------------|
-| ![Comparison Image](images/comparisons/0801_compare.png) |
-| ![Comparison Image](images/comparisons/0802_compare.png) |
-| ![Comparison Image](images/comparisons/0844_compare.png) |
-| ![Comparison Image](images/comparisons/0852_compare.png) |
-| ![Comparison Image](images/comparisons/0873_compare.png) |
-| ![Comparison Image](images/comparisons/0898_compare.png) |
+| ![Comparison Image](images/comparisons/0801v10_compare.png) |
+| ![Comparison Image](images/comparisons/0802v10_compare.png) |
+| ![Comparison Image](images/comparisons/0844v10_compare.png) |
+| ![Comparison Image](images/comparisons/0852v10_compare.png) |
+| ![Comparison Image](images/comparisons/0873v10_compare.png) |
+| ![Comparison Image](images/comparisons/0898v10_compare.png) |
 ---
 
 **Author:** Bernardo Lozano  

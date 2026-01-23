@@ -4,7 +4,7 @@ from PIL import Image
 
 # Current Filepath
 CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
-DIV2K_DIR = os.path.join(CURRENT_PATH, "DIV2K_Images")
+DIV2K_DIR = os.path.join("../Data", "DIV2K_Images")
 DIV2K_VALID_BAYER = os.path.join(DIV2K_DIR, "DIV2K_Valid_HR")
 
 MODEL_PATH = "../model.pth"
