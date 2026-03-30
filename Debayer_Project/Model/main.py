@@ -16,6 +16,11 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 # Script Imports
 from Data.dataset import ImageDataset
 from Model.unet import UNet
+
+# RCAN Import
+from Model.rcan_md.rcan import RCAN
+import types
+
 from Model.loss import CombinedLoss
 
 # Directories
@@ -54,6 +59,7 @@ def train(dataloader, model, loss_fn, optimizer, device):
 
         # Backpropagation
         batch_loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
         optimizer.step()
         optimizer.zero_grad()
 
@@ -112,7 +118,7 @@ def main():
     VALID_BATCH_SIZE = 10
 
     # Transforms
-    IMG_SIZE = 128 # Packed becomes 64x64
+    IMG_SIZE = 48 # Packed becomes 24x24
     VALID_IMG_SIZE = 512
 
     transform = transforms.ToTensor()
@@ -158,17 +164,32 @@ def main():
         print(f"Using {device} device")
 
     # Initialize Model
-    model = UNet().to(device)
+    # RCAN Args:
+    args_dict = {
+        'n_resgroups': 10,
+        'n_resblocks': 20,
+        'n_feats': 64,
+        'reduction': 16,
+        'scale': [2],
+        'rgb_range': 1,
+        'in_channels': 4,
+        'out_channels': 3,
+        'res_scale': 0.1
+    }
+
+    args = types.SimpleNamespace(**args_dict)
+
+    model = RCAN(args=args).to(device)
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model = DDP(model, device_ids=[local_rank])
     if is_main_process:
         print(model)
 
     # Optimizer & Epochs
-    epochs = 250
+    epochs = 150
 
     loss_fn = CombinedLoss().to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
+    optimizer = optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-5)
 
     # Learning Rate Scheduler
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs)

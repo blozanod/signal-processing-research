@@ -1,16 +1,24 @@
 import numpy as np
 import os
+import sys
 from PIL import Image
+
+# 1. Get the directory of the current script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# 2. Get the parent directory (where 'Model' folder is located)
+parent_dir = os.path.dirname(current_dir)
+# 3. Add parent directory to sys.path
+sys.path.append(parent_dir)
 
 # Current Filepath
 CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
-DIV2K_DIR = os.path.join("../Data", "DIV2K_Images")
+DIV2K_DIR = os.path.join("Data", "DIV2K_Images")
 DIV2K_VALID_BAYER = os.path.join(DIV2K_DIR, "DIV2K_Valid_HR")
 
-MODEL_PATH = "../model.pth"
+MODEL_PATH = "model.pth"
 
 # Image
-image_path = os.path.join(DIV2K_VALID_BAYER, "0867.png")
+image_path = os.path.join(DIV2K_VALID_BAYER, "0898.png")
 input_image = Image.open(image_path).convert("RGB")
 
 # Input image

@@ -14,14 +14,30 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
 from Model.unet import UNet
+from Model.rcan_md.rcan import RCAN
+import types
 import torch
 from torchvision import transforms
 import requests
 
-MODEL_PATH = "../model.pth"
+MODEL_PATH = "../best_model.pth"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 KODAK_FOLDER = "Kodak_Images"
 DOWNLOAD_URL_BASE = "http://r0k.us/graphics/kodak/kodak/"
+
+args_dict = {
+        'n_resgroups': 10,
+        'n_resblocks': 20,
+        'n_feats': 64,
+        'reduction': 16,
+        'scale': [2],
+        'rgb_range': 1,
+        'in_channels': 4,
+        'out_channels': 3,
+        'res_scale': 0.1
+    }
+
+args = types.SimpleNamespace(**args_dict)
 
 def download_kodak(destination_folder):
     """
@@ -159,7 +175,7 @@ def run_validation(kodak_folder_path, model):
 # Load Model and Run Verification
 print(f"Using device: {DEVICE}")
 print(f"Loading model from {MODEL_PATH}...")
-model = UNet().to(DEVICE)
+model = RCAN(args).to(DEVICE)
 
 state_dict = torch.load(MODEL_PATH)
 new_state_dict = {}

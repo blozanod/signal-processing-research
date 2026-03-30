@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Load the data
-df = pd.read_csv('loss_v10.csv')
+df = pd.read_csv('loss_history.csv')
 
 # Create the plot
 plt.figure(figsize=(10, 6))
@@ -17,4 +17,4 @@ plt.legend()
 plt.grid(True)
 
 # Save the plot
-plt.savefig('v10_loss_graph.png')
+plt.savefig('v11_loss_graph.png')

@@ -15,14 +15,30 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
 from Model.unet import UNet
+import types
+from Model.rcan_md.rcan import RCAN
 
 # --- Configuration ---
 # MODEL_PATH = "model_checkpoint.pth"
 MODEL_PATH = "model.pth"
 
-VERSION = "v10"
+VERSION = "v11"
 # Images to be generated
 IMAGE_PATHS = ["0801","0802","0808","0844","0852","0873","0898"]
+
+args_dict = {
+        'n_resgroups': 10,
+        'n_resblocks': 20,
+        'n_feats': 64,
+        'reduction': 16,
+        'scale': [2],
+        'rgb_range': 1,
+        'in_channels': 4,
+        'out_channels': 3,
+        'res_scale': 0.1
+    }
+
+args = types.SimpleNamespace(**args_dict)
 
 for image in IMAGE_PATHS:
     # Image path
@@ -31,7 +47,7 @@ for image in IMAGE_PATHS:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
     print(f"Loading model from {MODEL_PATH}...")
-    model = UNet().to(DEVICE)
+    model = RCAN(args).to(DEVICE)
 
     state_dict = torch.load(MODEL_PATH)
     new_state_dict = {}
